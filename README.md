@@ -1,4 +1,4 @@
-<!-- 🚨 TODO: Replace with your project logo -->
+<!-- 🚨 TODO: Replace with your project logo --> 
 <p align="center">
   <img src="resources/PHOENYX-1-logo-recortado.png" alt="Project Logo"/>
 </p>
