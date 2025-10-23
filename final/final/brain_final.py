@@ -397,7 +397,7 @@ class FSM_final(Node):
 
     #### ================= FUNCIONES PERCEPCION ================= ####
     
-    def obtener_recorte(self, frame: np.ndarray log_level=0):
+    def obtener_recorte(self, frame: np.ndarray, log_level: int = 0):
         try:
             if not isinstance(frame, np.ndarray):
                 raise ValueError("El parámetro de entrada debe ser una imagen de OpenCV (numpy.ndarray).")
