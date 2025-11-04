@@ -61,13 +61,14 @@ def generate_launch_description():
         )
     )
 
-    ld.add_action(
-        Node(
-            package='phoenyx_nodes',
-            executable='leds',
-            name='leds'
-        )
-    )
+    # ld.add_action(
+    #     Node(
+    #         package='phoenyx_nodes',
+    #         executable='leds',
+    #         name='leds'
+    #     )
+    # )
+
     # ld.add_action(
     #     Node(
     #         package='teleop_twist_joy',
@@ -122,7 +123,7 @@ def generate_launch_description():
             emulate_tty=True,
             parameters=[
                 {"publish_rate": 1.0},
-                {"sensor_address": "0x44"},
+                {"sensor_address": "0x45"},
             ]        
         )
     )
