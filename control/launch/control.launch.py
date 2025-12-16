@@ -15,14 +15,14 @@ def generate_launch_description():
     )
 
     lidar_params = os.path.join(
-        get_package_share_directory('ydlidar_ros2_driver'),
+        get_package_share_directory('rplidar_ros'),
         'params',
         'X4-Pro.yaml'
     )
     lidar = os.path.join(
-        get_package_share_directory('ydlidar_ros2_driver'),
+        get_package_share_directory('rplidar_ros'),
         'launch',
-        'ydlidar_launch_view.py'
+        'rplidar_a2m8_launch.py'
     )
     bringup = os.path.join(
         get_package_share_directory('osr_bringup'),
