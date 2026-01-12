@@ -28,7 +28,8 @@ def generate_launch_description():
             output='screen',
             emulate_tty=True,
             respawn=True,
-            parameters=[joy_params]
+            parameters=[joy_params],
+            #remappings=[('/cmd_vel', '/cmd_vel_intuitive')],
     )
 
 

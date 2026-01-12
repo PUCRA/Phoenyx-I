@@ -1,292 +1,314 @@
-import sklearn
-from percepcion.Recorte2number import Recorte2number
+import os
+import time
+import traceback
+from collections import Counter
+import threading
+
+import cv2
+import numpy as np
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
-import cv2
-from cv_bridge import CvBridge
 from std_msgs.msg import Int32
-import message_filters
-from message_filters import ApproximateTimeSynchronizer
-from percepcion.Img2recorte import image2recorte
-from std_srvs.srv import SetBool
-from sensor_msgs.msg import BatteryState, Joy 
-import time
-import numpy as np
-import traceback
+from cv_bridge import CvBridge
+import pyrealsense2 as rs
 
-class brain_percepcion(Node):
+# Custom module for processing
+from percepcion.Recorte2number import Recorte2number
+
+
+class BrainIntelNode(Node):
     def __init__(self):
-        super().__init__('brain_percepcion')
+        # Initialize the ROS 2 node with the given name
+        super().__init__('brain_intel_node')
 
-        # paramns camara
+        # ------------------ Parameters ------------------
+        # Declare configurable ROS parameters
         self.declare_parameters(namespace='', parameters=[
-            ('depth_filter.min', 1000), 
-            ('depth_filter.max', 2000),
-            ('numero_muestras', 10)
+            ('numero_muestras', 10),   # Number of samples to collect before deciding
+            ('show_camera', False),    # If you want another window with the camera view
         ])
-        # Leer los parámetros
-        self.min_depth = self.get_parameter('depth_filter.min').get_parameter_value().integer_value
-        self.max_depth = self.get_parameter('depth_filter.max').get_parameter_value().integer_value
-        self.numero_muestras = self.get_parameter('numero_muestras').get_parameter_value().integer_value
-        self.get_logger().info('Rango de profundidad: %d - %d' % (self.min_depth, self.max_depth))
-        self.get_logger().info('Numero muestras: %d' % (self.numero_muestras))
 
+        # Read parameter values
+        self.numero_muestras = int(self.get_parameter('numero_muestras').value)
+        self.show_camera = bool(self.get_parameter('show_camera').value)
 
-        #publisher nodo dar_vueltas
+        # Log the number of samples being used
+        self.get_logger().info(f"Número de muestras: {self.numero_muestras}")
+
+        # ------------------ Publishers ------------------
+        # Publisher that outputs the final number of rotations
         self.pub_vueltas = self.create_publisher(Int32, '/num_vueltas', 10)
+        # Publisher that streams the RGB image as a ROS topic
+        self.intel_pub = self.create_publisher(Image, 'rgb_frame', 10)
+        # OpenCV <-> ROS image bridge
+        self.br_rgb = CvBridge()
 
+        # ------------------ Processors ------------------
+        # Object responsible for detecting number and color from images
+        self.converter = Recorte2number()
 
-        #Objetos de librerias
-        self.bridge = CvBridge()
-        self.conversor = Recorte2number()
-
-        # Variables varias
-        self.conteo_muestras = 0
-        self.estado = 0
-        self.enable_muestras = False
+        # ------------------ Internal variables ------------------
+        # List of detected numbers across samples
         self.numeros = []
+        # List of detected colors across samples
         self.colores = []
+        # Counter of how many samples have been processed
+        self.conteo_muestras = 0
+        # Finite State Machine (FSM) state
+        self.estado = 1
+        # Final decided number
         self.numero_final = 0
+        # Final decided color
         self.color_final = ""
-        self.ini_time = 0
-
-        
-        
-        # Inicialización de la cámara y sincornizacion de depth y color
-        self.converter = image2recorte()
-        self.color_subscription = message_filters.Subscriber(self, Image, '/camera/color/image_raw')
-        self.depth_subscription = message_filters.Subscriber(self, Image, 'camera/depth/image_raw')
-        self.joy_subscription = self.create_subscription(Joy, '/joy', self.joy_callback, 10)
-        self.go_button = 0
-        # self.publish_recorte = self.create_publisher(Image, '/recorte', 10)
-        # self.publish_recorte_bin = self.create_publisher(Image, '/recorte_bin', 10)
-        # self.publisher_recorte_bin_2 = self.create_publisher(Image, '/recorte_bin_2', 10)
-
-
-        # Sincronizador de los dos tópicos con una tolerancia en el tiempo
-        self.ts = ApproximateTimeSynchronizer(
-            [self.color_subscription, self.depth_subscription], 
-            queue_size=10, 
-            slop=0.1  # Tiempo máximo de diferencia entre los mensajes para ser sincronizados
-        )
-        self.ts.registerCallback(self.camara_callback)
-        self.i = 0
-
-        #Clientes para parar la camara
-        self.color_client = self.create_client(SetBool, '/camera/toggle_color')
-        self.depth_client = self.create_client(SetBool, '/camera/toggle_depth')
-
-        self.get_logger().info('Esperando servicios...')
-        
-        # Esperar a que los servicios estén disponibles
-        self.color_client.wait_for_service()
-        self.depth_client.wait_for_service()
-
-
-
-        #Inicio de la FSM
-        self.timer = self.create_timer(0.2, self.FSM)
-        self.get_logger().info("Brain node Iniciado")
+        # Timestamp when the sampling phase started
+        self.ini_time = time.time()
+        # Reference number used for debug image naming
         self.numero_really = 5
-        
-    def joy_callback(self, msg: Joy):
-        self.go_button = msg.buttons[2]
-        # self.get_logger().info(f"Estado del segundo botón: {self.go_button}")
-        # self.get_logger().info(f"Estado del segundo botón: {stop_button}")
-        # if stop_button == 1: 
-            # self.get_logger().info("Botón pulsado: activando kill_nodes")
-            # self.kill_nodes()
-    
-    def camara_callback(self, color_msg, depth_msg):
+        # Index for saved debug images
+        self.i = 0
+        # Deadline timestamp used in reset state
+        self._reset_deadline = None
+
+        # ------------------ Initialize RealSense ------------------
         try:
-            if(self.enable_muestras):
-                # Convertir las imágenes de ROS a formato OpenCV
-                color_image = self.bridge.imgmsg_to_cv2(color_msg, desired_encoding='bgr8')
-                depth_image = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding='16UC1')
-
-                # Filtrar los píxeles de color basándonos en el rango de profundidad
-                # Definimos un rango de valores de profundidad (en milímetros)
-
-                # Crear una máscara donde la profundidad está dentro del rango especificado
-                mask = (depth_image >= self.min_depth) & (depth_image <= self.max_depth)
-
-                # Crear una imagen filtrada de color con los píxeles que están dentro del rango de profundidad
-                filtered_color_image = color_image.copy()
-                # kernel = np.ones((5, 5), np.uint8)  # El tamaño del kernel controla cuánto se dilata la máscara
-                kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (10, 10))
-                dilated_mask = cv2.dilate(mask.astype(np.uint8), kernel, iterations=5)
-                filtered_color_image[dilated_mask == 0] = 255  # Ponemos en negro los píxeles fuera del rango
-                # Mostrar la imagen filtrada de color
-                # cv2.imshow("Filtered Color Image", filtered_color_image)
-                # cv2.waitKey(0)
-
-                # cv2.waitKey(0)
-                # self.get_logger().info("Obteniendo recorte...")
-                depth_mask = mask.astype(np.uint8) * 255 
-                cv2.imwrite("depth.jpg", depth_mask)
-                cv2.imwrite("filtered.jpg", filtered_color_image)
-                # time.sleep(5)
-                recorte, _ = self.converter.obtener_recorte(filtered_color_image, depth_mask)
-                # if img_bin is not None:
-                #     self.publish_recorte_bin.publish(self.bridge.cv2_to_imgmsg(img_bin, encoding='mono8'))
-                if recorte is not None:
-                    
-                    # cv2.imshow("Recorte", recorte)oclaw_wrapper]: Motor 
-                    # imagen_redimensionada = cv2.resize(recorte, (28, 28), interpolation=cv2.INTER_LINEAR)
-                    # msg = self.bridge.cv2_to_imgmsg(recorte, encoding='bgr8')
-                    progreso = len(self.numeros) / self.numero_muestras
-                    porcentaje = int(progreso * 100)
-                    barra = "#" * (porcentaje // 2)  # Barra de 50 caracteres máx.
-                    espacio = " " * (50 - len(barra))  # Relleno para mantener tamaño fijo
-                    self.get_logger().info(f"[{barra}{espacio}] {porcentaje}%")
-                    # Publica la imagen en el tópico
-                    # cv2.imshow("Recorte", recorte)
-                    # self.publish_recorte.publish(msg)
-                    # self.get_logger().info("Tratando_imagen...")
-                    self.tratar_recorte(recorte)
-                    # self.get_logger().info("Imagen tratada con exito!")
-
+            # Create RealSense pipeline and configuration
+            self.pipe = rs.pipeline()
+            self.cfg = rs.config()
+            # Enable RGB color stream
+            self.cfg.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+            # Start the camera
+            self.pipe.start(self.cfg)
+            self.camera_ready = True
+            self.get_logger().info("RealSense inicializada.")
         except Exception as e:
-            self.get_logger().error('Error al procesar las imágenes: %s' % str(e))
+            # Handle camera connection errors
+            self.get_logger().error(f"RealSense NO conectada: {e}")
             traceback.print_exc()
+            self.camera_ready = False
+            self.pipe = None
 
-            
+        # ------------------ Visualization window ------------------
+        # Create an OpenCV window to show the camera feed
+        if self.show_camera:
+            cv2.namedWindow("RealSense View", cv2.WINDOW_NORMAL)
+            cv2.resizeWindow("RealSense View", 640, 480)
 
-    def toggle_color(self, enable: bool):
-        """ Llama al servicio para activar/desactivar color """
-        request = SetBool.Request()
-        request.data = enable
-        future = self.color_client.call_async(request)
+        # ------------------ Capture thread ------------------
+        # Flag to control the camera loop execution
+        self._running = True
+        # Separate thread for camera capture to avoid blocking ROS callbacks
+        self.capture_thread = threading.Thread(
+            target=self.camera_loop,
+            daemon=True
+        )
+        self.capture_thread.start()
 
+        # ------------------ FSM timer ------------------
+        # Timer that periodically executes the FSM logic
+        self.fsm_timer = self.create_timer(0.001, self.FSM)
 
-    def toggle_depth(self, enable: bool):
-        """ Llama al servicio para activar/desactivar profundidad """
-        request = SetBool.Request()
-        request.data = enable
-        future = self.depth_client.call_async(request)
+    # ============================================================================================
+    #                                   REALSENSE LOOP
+    # ============================================================================================
+    def camera_loop(self):
+        # Exit if the camera is not properly initialized
+        if not self.camera_ready:
+            self.get_logger().error("Cámara no lista")
+            return
 
+        # Main camera acquisition loop
+        while self._running:
+            try:
+                # Wait for a new set of frames from the camera
+                frames = self.pipe.wait_for_frames(timeout_ms=1000)
+                # Extract the color frame
+                color_frame = frames.get_color_frame()
+                
+                if not color_frame:
+                    continue
 
+                # Convert frame data to a NumPy array
+                color_image = np.asanyarray(color_frame.get_data())
+
+                # Skip invalid images
+                if color_image is None or color_image.size == 0:
+                    continue
+
+                # Publish the image as a ROS message
+                ros_img = self.br_rgb.cv2_to_imgmsg(color_image, encoding='bgr8')
+                self.intel_pub.publish(ros_img)
+
+                # Process the image only if sampling is enabled by the FSM
+                if self.enable_muestras:
+                    self.tratar_recorte(color_image)
+
+                # Display the camera feed
+                if self.show_camera:
+                    cv2.imshow("RealSense View", color_image)
+                    cv2.waitKey(1)
+
+            except Exception as e:
+                # Log and print any runtime errors in the camera loop
+                self.get_logger().error(f"Error en camera_loop: {e}")
+                traceback.print_exc()
+
+        # Log when the camera loop stops
+        self.get_logger().info("camera_loop detenido.")
+
+    # ============================================================================================
+    #                                   PROCESSING
+    # ============================================================================================
     def tratar_recorte(self, image):
-        if self.enable_muestras:
-            # imagen = self.bridge.imgmsg_to_cv2(image, desired_encoding='bgr8')
-            numero, color, img = self.conversor.obtener_colorYnum(image)
-            # self.publisher_recorte_bin_2.publish(self.bridge.cv2_to_imgmsg(image_thresh, encoding='mono8'))
-            if numero is not None:
-                self.numeros.append(numero)
-                if numero != self.numero_really:
-                    # self.get_logger().info("Numero erroneo")
-                    cv2.imwrite(f"percepcion/imagenes/{self.numero_really}_{numero}_{self.i}.png", img)
-                    self.i += 1
-                self.get_logger().info("Numero: "+str(numero))
-            if color is not None:
-                self.colores.append(color)
-            self.conteo_muestras += 1
-            # self.get_logger().info('Color: '+color+'Numero: '+str(numero))
-        else:
-            pass
+        
+        # Ignore invalid images
+        if image is None or image.size == 0:
+            return
 
+        try:
+            # Extract detected number, color, and thresholded image
+            res = self.converter.obtener_colorYnum(image)
+        except Exception as e:
+            # Warn if the detection process fails
+            self.get_logger().warning(f"Error obtener_colorYnum: {e}")
+            return
+
+        # Validate the returned result
+        if not res or not isinstance(res, tuple):
+            return
+
+        # Unpack detection results
+        numero, color, img_thresh = res
+
+        # If a number was detected, store it
+        if numero is not None:
+            self.numeros.append(numero)
+            self.get_logger().info(f"Detectado número {numero}, color {color}")
+            self.i += 1
+
+        # If a color was detected, store it
+        if color:
+            self.colores.append(color)
+
+        # Increase the sample counter
+        self.conteo_muestras += 1
+
+    # ============================================================================================
+    #                                   DECISION
+    # ============================================================================================
     def decision_making(self):
-        numeros = self.numeros
-        colores = self.colores
-        prob_rojo = 0  # Probabilidad de rojo
-        prob_azul = 0 # Probabilidad de azul
-        prob_distract = 0
-        for color in colores:
-            if color == "Azul":
-                prob_azul += 1
-            elif color =="Rojo":
-                prob_rojo += 1
-            else:
-                prob_distract += 1
-        prob_rojo /= float(len(colores))
-        prob_azul /= float(len(colores))
-        prob_distract /= float(len(colores))
-        frecuencia_por_numero = {i: 0 for i in range(0, 10)}
+        # If no numbers were detected, return a default result
+        if not self.numeros:
+            return 0, "Distractorio"
 
-        for valor in numeros:
-            # Filtrar por confianza: solo contar si la confianza supera el umbral
-            if valor in frecuencia_por_numero:
-                frecuencia_por_numero[valor] += 1  # Ponderar por la confianza
+        # Select the most common detected number
+        numero = Counter(self.numeros).most_common(1)[0][0]
 
-        # Determinar el número con mayor frecuencia ponderada
-        numero = max(frecuencia_por_numero, key=frecuencia_por_numero.get)
-        color = max(prob_rojo, prob_azul, prob_distract)
-        # prob_numero = frecuencia_por_numero[numero] / sum(frecuencia_por_numero.values())  # Frecuencia relativa ponderada
-        print(self.colores)
-        # Determinar el color con mayor probabilidad
-        if prob_rojo == color:
-            color = "Rojo"
-            prob_color = prob_rojo
-        elif prob_azul == color:
-            color = "Azul"
-            prob_color = prob_azul
-        else:
-            color = "Distractorio"
+        # Count occurrences of each color
+        counts = {
+            "Rojo": self.colores.count("Rojo"),
+            "Azul": self.colores.count("Azul"),
+            "Distractorio": len(self.colores)
+        }
+        # Select the color with the highest count
+        color = max(counts, key=counts.get)
 
         return numero, color
 
+    # ============================================================================================
+    #                                   FSM
+    # ============================================================================================
     def FSM(self):
-        # print("Estado: {}".format(self.estado))
-        if self.estado == 0:
-            self.enable_muestras = False
-            # self.numero_really = input("Introduce el número de vueltas: ")
-            # self.get_logger().info(f"Estado del segundo botón: {self.go_button}")
-            if self.go_button == 1:
-                self.get_logger().info("Activamos camara color")
-                self.toggle_color(True)
-                self.get_logger().info("Activamos camara depth")
-                self.toggle_depth(True) # Apaga la imagen en color
-                self.get_logger().info("Iniciando detección...")
-                time.sleep(3)
-                self.estado = 1
-                self.ini_time = time.time()
-        elif self.estado == 1:
-            self.enable_muestras = True
-            # if time.time()-self.ini_time >= 40:
-            #     self.estado = 2
-            if self.conteo_muestras >= self.numero_muestras or time.time()-self.ini_time >= 40:
-                self.estado = 2
-                self.get_logger().info("Desactivamos camara color")
-                self.toggle_color(False)
-                self.get_logger().info("Desactivamos camara depth")
-                self.toggle_depth(False) # Apaga la imagen en color
-                self.get_logger().info("Pasamos a calcular estadistica")
-            # Cogemos muestras y las tratamos
-            pass
-        elif self.estado == 2:
-            # calculamos estadistica
-            self.enable_muestras = False
-            self.numero_final, self.color_final = self.decision_making()
-            self.get_logger().info("Numeros: {}".format(self.numeros))
-            numero_print = str(self.numero_final)
-            if self.numero_final == 0:
-                numero_print = "No hay numero"
-            self.get_logger().info("Numero: "+numero_print+" Color: "+str(self.color_final))
-            msg = Int32()
-            if self.color_final == "Azul":
-                msg.data = self.numero_final
-            elif self.color_final == "Rojo":
-                msg.data = -self.numero_final
-            else:
-                msg.data = 0
-            self.pub_vueltas.publish(msg)
-            self.estado = 3
-        elif self.estado == 3:
-            # estado de reposo
-            time.sleep(10)
-            self.numeros = []
-            self.colores = []
-            self.conteo_muestras = 0
-            self.estado = 0
+        try:
+            if self.estado == 1:  # COLLECTION STATE
+                # Enable sample collection
+                self.enable_muestras = True
+                # Transition if enough samples or timeout reached
+                if self.conteo_muestras >= self.numero_muestras or \
+                   (time.time() - self.ini_time) >= 40:
+                    self.estado = 2
+
+            elif self.estado == 2:  # PROCESSING STATE
+                # Stop collecting samples
+                self.enable_muestras = False
+                # Make the final decision
+                self.numero_final, self.color_final = self.decision_making()
+
+                # Prepare the output message
+                msg = Int32()
+                if self.color_final == "Azul":
+                    msg.data = int(self.numero_final)
+                elif self.color_final == "Rojo":
+                    msg.data = -int(self.numero_final)
+                else:
+                    msg.data = 0
+
+                # Publish the result
+                self.pub_vueltas.publish(msg)
+                # Set a short delay before resetting
+                self._reset_deadline = time.time() + 0.2
+                self.estado = 3
+
+            elif self.estado == 3:  # RESET STATE
+                # Reset all variables after the deadline
+                if time.time() >= self._reset_deadline:
+                    self.numeros.clear()
+                    self.colores.clear()
+                    self.conteo_muestras = 0
+                    self.ini_time = time.time()
+                    self.estado = 1
+
+        except Exception as e:
+            # Log FSM-related errors
+            self.get_logger().error(f"Error en FSM: {e}")
+            traceback.print_exc()
+
+    # ============================================================================================
+    #                                   DESTRUCTOR
+    # ============================================================================================
+    def destroy_node(self):
+        # Log node shutdown
+        self.get_logger().info("Cerrando nodo...")
+        # Stop the camera loop
+        self._running = False
+        time.sleep(0.1)
+
+        # Stop the RealSense pipeline if active
+        try:
+            if self.pipe:
+                self.pipe.stop()
+        except:
             pass
 
+        # Close all OpenCV windows
+        try:
+            cv2.destroyAllWindows()
+        except:
+            pass
 
+        # Call the parent class destructor
+        super().destroy_node()
+
+
+# ============================================================================================
+#                                       MAIN
+# ============================================================================================
 def main(args=None):
+    # Initialize ROS 2
     rclpy.init(args=args)
-    brain_percepcion_node = brain_percepcion()
-    rclpy.spin(brain_percepcion_node)
-    brain_percepcion_node.destroy_node()
-    rclpy.shutdown()
-        
-    
+    # Create the node instance
+    node = BrainIntelNode()
+    try:
+        # Keep the node running
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        # Clean shutdown
+        node.destroy_node()
+        rclpy.shutdown()
+
+
+# Entry point when running the script directly
+if __name__ == "__main__":
+    main()

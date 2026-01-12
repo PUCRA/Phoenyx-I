@@ -72,9 +72,9 @@ def rotate_laserscan(scan_msg: LaserScan, angle_shift_rad: float) -> LaserScan:
 # MAIN MAZE NAVIGATION NODE
 # =========================
 class Maze_Navigation_Node(Node):
-    def _init_(self):
+    def __init__(self):
         # Initializing the ROS 2 node
-        super()._init_("maze_navigation_node")
+        super().__init__("maze_navigation")
         self.get_logger().info("🚀 Movement node initiated")
 
         # Robot speed Publisher
