@@ -1,28 +1,44 @@
-joy:
+# =========================
+# Joy node configuration
+# =========================
+joy_node:
     ros__parameters:
-        device_id: 0
-        deadzone: 0.05
-        autorepeat_rate: 5.0 
+        device_id: 0 # Joystick device ID (use ros2 run joy joy_enumerate_devices to list devices)
+        deadzone: 0.05 # Ignore small axis values around zero to avoid noise
+        autorepeat_rate: 5.0 # Rate (Hz) to resend the last joystick command
 
+# ==================================
+# Teleop twist joy configuration
+# ==================================
 teleop_twist_joy_node:
-    ros__parameters:
-        axis_linear:
-            x: 7 # joystick right. ros2 run joy_tester test_joy 
-        scale_linear:
-            x: -0.5 # [m/s] vel is goin to move when we push the axis to the limit 
-        scale_linear_turbo.x: -1.0 # [m/s] max vel when we press turbo
 
-        axis_angular:
-            yaw: 3 # joystick right. ros2 run joy_tester test_joy 
-        scale_angular:
-            yaw: 0.5 # [rad/s] vel is goin to move when we push the axis to the limit 
-        scale_angular_turbo:
-            yaw: 1.0 # [rad/s] max vel when we press turbo
+# NOTE:
+    # Do NOT enable any "intuitive" mode here.
+    # In real mode, intuitive behavior is handled internally by the robot controller
+    # when publishing to /cmd_vel_intuitive (see launch file remapping).
+
+    ros__parameters:
         
-        # By default this buttons employ a dead man switch, so if you go of the buttons it is going to send a zero speed reference until it stop
-        enable_button: 4
-        enable_turbo_button: 5
+        # Linear velocity (forward/backward)
+        axis_linear:
+            x: 7   # Joystick axis index
+        scale_linear:
+            x: -0.5 # Max linear speed [m/s]
+        scale_linear_turbo:
+            x: -1.0 # Max linear speed in turbo mode [m/s]
+
+        # Angular velocity (yaw rotation)
+        axis_angular:
+            yaw: 3   # Joystick axis index
+        scale_angular:
+            yaw: 0.5 # Max angular speed [rad/s]
+        scale_angular_turbo:
+            yaw: 1.0 # Max angular speed in turbo mode [rad/s]
+        
+         # Safety and mode buttons
         require_enable_button: true
+        enable_button: 4 # Dead-man switch
+        enable_turbo_button: 5 # Turbo mode button
 
         # Invert turn direction when moving backward (linear.x < 0)
-        inverted_reverse: true
+        inverted_reverse: false # Handled by robot controller

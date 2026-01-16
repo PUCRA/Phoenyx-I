@@ -29,7 +29,7 @@ def generate_launch_description():
             emulate_tty=True,
             respawn=True,
             parameters=[joy_params],
-            #remappings=[('/cmd_vel', '/cmd_vel_intuitive')],
+            remappings=[('/cmd_vel', '/cmd_vel_intuitive')],
     )
 
 
