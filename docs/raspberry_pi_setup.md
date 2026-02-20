@@ -290,6 +290,53 @@ If an error appears:
 
 ---
 
+### 6.4. Verify LIDAR (RPLIDAR A2M8)
+
+This procedure verifies that the RPLIDAR A2M8 is correctly connected, publishing /scan data, and properly oriented on the robot.
+
+1. Open a first terminal and run:
+   ```bash
+   $ ros2 launch rplidar_ros rplidar_a2m8_launch.py serial_port:=/dev/ttyUSB0 serial_baudrate:=115200 scan_mode:=Standard
+   ```
+
+   If the LIDAR is correctly connected, it should start rotating and publishing data on the /scan topic.
+
+2. Run the LIDAR test node
+   ```bash
+   $ ros2 run osr_controll_challenge test_lidar
+   ```
+   
+   This node subscribes to the /scan topic and computes the minimum distance detected in four quadrants:
+   - Front (90°)
+   - Left (180°)
+   - Back (270°)
+   - Right (0°)
+
+   The terminal should continuously print values like:
+
+   ```bash
+   Distances (m) | Front: 1.25 | Left: 2.10 | Back: 3.45 | Right: 0.95
+   ```
+
+3. Functional Verification Procedure
+   1. To verify correct behavior:
+   2. Take a sheet of paper (or any flat object).
+   3. Place it in front of the robot → the Front value should decrease.
+   4. Move it to the left side → the Left value should decrease.
+   5. Move it behind the robot → the Back value should decrease.
+   6. Move it to the right side → the Right value should decrease.
+   7. Each quadrant should clearly reflect the closest obstacle in that direction.
+
+   If the distances do not correspond to the expected direction, the LIDAR may be physically rotated relative to the robot frame.
+   In that case:
+   1. Identify the real angular offset.
+   2. Modify the quadrant angle definitions inside the test node (line 21).
+   3. Rebuild the workspace.
+   4. Run the test again.
+   Repeat until the quadrant readings correctly match the physical orientation of the robot.
+   
+---
+
 ➡️ Continue with the main project documentation to run Phoenyx I in simulation or on the real robot:
 
 👉 [Phoenyx I Main README](../README.md)
