@@ -303,7 +303,7 @@ This procedure verifies that the RPLIDAR A2M8 is correctly connected, publishing
 
 2. Run the LIDAR test node
    ```bash
-   $ ros2 run osr_controll_challenge test_lidar
+   $ ros2 run osr_control_challenge test_lidar
    ```
    
    This node subscribes to the /scan topic and computes the minimum distance detected in four quadrants:
