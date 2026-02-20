@@ -1,9 +1,0 @@
-brain_percepcion:
-  ros__parameters:
-    numero_muestras: 10
-    show_camera: false
-    display: true
-    dump_debug_images: false
-    realsense_width: 640
-    realsense_height: 480
-    realsense_fps: 30

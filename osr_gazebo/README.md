@@ -3,9 +3,14 @@
 Simplified models are included to enhance simulation permformance and reduce computational load.
 - Updated `osr_gazebo` to use modern `tf2_geometry_msgs.hpp` header (ROS 2 Humble compatibility).
 - Added `simplified_meshes/` directory with lighter models
-- Added `osr_simplifies.urdf.xacro` using simplified meshes and updated inertias
-- Added launch files: `empty_world_simplified.py`and `rviz_simplified.launch.py` to launch the robot with the simplified meshes
+- Added `osr_simplifies.urdf.xacro` using simplified meshes, updated inertial parameters, and integrated LIDAR and IMU sensors. 
+- Added Gazebo plugins for the LIDAR and IMU sensors.
+- Added launch files: `empty_world_simplified.py` and `rviz_simplified.launch.py` to launch the robot with the simplified meshes
 - Updated README with usage instructions
+- Introduced a `worlds/` directory containing three maze environments for testing navigation and mapping algorithms:
+  - `maze_1.world`
+  - `maze_2.world`
+  - `maze_3.world`
 
 ### How to run:
 To view the rover in rviz and manually control the joints, execute the following command:

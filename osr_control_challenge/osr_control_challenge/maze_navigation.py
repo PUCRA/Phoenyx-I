@@ -7,66 +7,6 @@ from rclpy.node import Node
 from geometry_msgs.msg import Twist          # Message for linear 
 from sensor_msgs.msg import LaserScan        # LIDAR message
 import numpy as np
-import math
-
-# =========================
-# FUNCTION TO ROTATE THE LASERSCAN
-# =========================
-# The LIDAR is physically mounted rotated (in our case 90°).
-# This function repositions its measurements
-# so that the 0° angle matches with the actual front of the robot.
-def rotate_laserscan(scan_msg: LaserScan, angle_shift_rad: float) -> LaserScan:
-
-    # scan_msg.ranges is a list:
-    # each position corresponds to a specific angular direction
-    ranges = np.array(scan_msg.ranges)
-
-    # Angle between two consecutive LIDAR measurements (rad)
-    angle_increment = scan_msg.angle_increment
-
-    # We convert the rotation angle (in our case 90°)
-    # into an index shift of the array
-    #
-    # Example:
-    # - if each measurement is 1°
-    # - and we rotate -90°
-    # → we shift the array 90 positions
-    shift = int(angle_shift_rad / angle_increment)
-
-    # We move the distance array in a circular motion.
-    # This causes:
-    # - what was previously on one side
-    # - to now be in front (angle 0°)
-    rotated_ranges = np.roll(ranges, shift)
-
-    # We create a new LaserScan message
-    # with the distances already corrected
-    corrected_scan = LaserScan()
-
-    # We copy the original header
-    corrected_scan.header = scan_msg.header
-
-    # We indicate that the data is now aligned
-    # with the robot's base_link frame.
-    corrected_scan.header.frame_id = 'base_link'
-
-    # The rest of the parameters remain unchanged.
-    corrected_scan.angle_min = scan_msg.angle_min
-    corrected_scan.angle_max = scan_msg.angle_max
-    corrected_scan.angle_increment = scan_msg.angle_increment
-    corrected_scan.time_increment = scan_msg.time_increment
-    corrected_scan.scan_time = scan_msg.scan_time
-    corrected_scan.range_min = scan_msg.range_min
-    corrected_scan.range_max = scan_msg.range_max
-
-    # We assign the already rotated distances
-    corrected_scan.ranges = rotated_ranges.tolist()
-
-    # The intensities do not need to be rotated.
-    corrected_scan.intensities = scan_msg.intensities
-
-    # We return the corrected scan
-    return corrected_scan
 
 # =========================
 # MAIN MAZE NAVIGATION NODE
@@ -107,8 +47,7 @@ class Maze_Navigation_Node(Node):
     # LASER CALLBACK
     # =========================
     def scan_callback(self, msg: LaserScan):
-        # We rotate the scan -90° to align the front of the robot.
-        scan = rotate_laserscan(msg, math.radians(-90))
+        scan = msg
 
         # We convert ranges and angles to numpy
         ranges = np.array(scan.ranges)
@@ -128,9 +67,8 @@ class Maze_Navigation_Node(Node):
             dt = 0.1
         self.last_time = now
 
-
         # =========================
-        # FILTERING INVALID DATA  (infinite values / NaN)
+        # FILTERING INVALID DATA 
         # =========================
         mask_valid = np.isfinite(ranges)
         ranges = ranges[mask_valid]
@@ -174,8 +112,8 @@ class Maze_Navigation_Node(Node):
         # =========================
         # Right: 10° to 70°
         # Left: -10° to -70°
-        mask_right = (new_angles >= np.radians(10)) & (new_angles <= np.radians(70))
-        mask_left = (new_angles <= np.radians(-10)) & (new_angles >= np.radians(-70))
+        mask_left = (new_angles >= np.radians(10)) & (new_angles <= np.radians(70))
+        mask_right = (new_angles <= np.radians(-10)) & (new_angles >= np.radians(-70))
 
         right_vals = new_ranges[mask_right]
         left_vals = new_ranges[mask_left]
@@ -236,9 +174,6 @@ class Maze_Navigation_Node(Node):
             cmd.linear.x = 0.18
         else:
             cmd.linear.x = 0.25
-
-        # Invert speed because the wheel motors respond inversely
-        cmd.linear.x *= -1
 
         # We publish the speed command
         self.cmd_vel_publisher.publish(cmd)

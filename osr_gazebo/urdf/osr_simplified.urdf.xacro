@@ -499,9 +499,48 @@
     <xacro:insert_position_transmission name="rear_wheel_joint_L"/>
 
 
-    <!-- Add here IMU link and joint -->
+    <!-- IMU link and joint -->
+    <link name="imu_link">
+        <visual>
+            <geometry>
+                <box size="0.04 0.04 0.01"/>
+            </geometry>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+        </visual>
+        <collision>
+            <geometry>
+                <box size="0.04 0.04 0.01"/>
+            </geometry>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+        </collision>
+    </link>
+
+    <joint name="imu_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="imu_link"/>
+        <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+    </joint>
+
+    <!-- LiDAR link and joint -->
+    <link name="laser_frame">
+        <visual>
+            <geometry>
+                <cylinder radius="0.03" length="0.04"/>
+            </geometry>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+        </visual>
+        <collision>
+            <geometry>
+                <cylinder radius="0.03" length="0.04"/>
+            </geometry>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+        </collision>
+    </link>
     
-    <!-- Add here LiDAR link and joint -->
-    
+    <joint name="laser_joint" type="fixed">
+        <parent link="base_link" />
+        <child link="laser_frame" /> 
+        <origin xyz="0.09 0 0.08" rpy="0 0 0" />
+    </joint>
 
 </robot>

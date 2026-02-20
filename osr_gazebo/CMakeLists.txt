@@ -30,6 +30,7 @@ install(DIRECTORY
   meshes
   rviz
   simplified_meshes
+  worlds
   DESTINATION share/${PROJECT_NAME}/
 )
 

@@ -28,7 +28,10 @@ def generate_launch_description():
 
     doc = xacro.parse(open(xacro_file))
     xacro.process_doc(doc)
-    params = {'robot_description': doc.toxml()}
+    params = {
+        'robot_description': doc.toxml(),
+        'use_sim_time': True,  
+    }
 
     node_robot_state_publisher = Node(
         package='robot_state_publisher',
@@ -40,7 +43,8 @@ def generate_launch_description():
     controller_spawn = Node(
         package='osr_gazebo',
         executable='osr_controller',
-        output='screen'
+        output='screen',
+        parameters=[{'use_sim_time': True}],
     )
     
     spawn_entity = Node(package='gazebo_ros', executable='spawn_entity.py',
@@ -66,9 +70,22 @@ def generate_launch_description():
         cmd=['ros2', 'control', 'load_controller', '--set-state', 'active', 'servo_controller'],
         output='screen'
     )
+
+    # RViz config
+    rviz_config = os.path.join(osr_urdf_path, 'rviz', 'osr_gazebo.rviz')
+
+    rviz_node = Node(
+        package='rviz2',
+        executable='rviz2',
+        name='rviz2',
+        output='screen',
+        arguments=['-d', rviz_config],
+        parameters=[{'use_sim_time': True}],
+    )
     
     return LaunchDescription([
     	controller_spawn,
+        spawn_entity,
         RegisterEventHandler(
             event_handler=OnProcessExit(
                 target_action=spawn_entity,
@@ -82,5 +99,5 @@ def generate_launch_description():
    
         gazebo,
         node_robot_state_publisher,
-        spawn_entity,
+        rviz_node,
     ])

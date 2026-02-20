@@ -3,22 +3,17 @@ import os
 import glob
 
 package_name = 'osr_control_challenge'
-from setuptools import find_packages, setup
-import os
-import glob
-
-package_name = 'osr_control_challenge'
 
 # Find all YAML config files
 config_files = glob.glob(os.path.join('conf', '*.yaml'))
 
-# Find all launch files
+# Find all launch filest
 launch_files = glob.glob(os.path.join('launch', '*.py'))
 
 setup(
     name=package_name,
     version='0.0.0',
-    packages=find_packages(),  # Instala osr_control_challenge package
+    packages=find_packages(),  # 👈 IMPORTANT: install osr_control_challenge package
     data_files=[
         ('share/ament_index/resource_index/packages',
          ['resource/' + package_name]),
@@ -35,8 +30,8 @@ setup(
     entry_points={
         'console_scripts': [
             'maze_navigation = osr_control_challenge.maze_navigation:main',
-            'killer_node = osr_control_challenge.killer_node:main',   # 👈 AÑADIDO
+            'maze_navigation_real = osr_control_challenge.maze_navigation_real:main',
+            'test_lidar = osr_control_challenge.test_lidar:main',
         ],
     },
 )
-
