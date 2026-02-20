@@ -38,7 +38,7 @@ Built on top of the [NASA JPL Open Source Rover](https://github.com/nasa-jpl/ope
 The system integrates multiple sensors to enable autonomous operation:
 
 - 🎥 **Intel RealSense D435i** — RGB-D perception and visual detection  
-- 📡 **RPLidar** — 2D LiDAR for navigation and obstacle detection  
+- 📡 **RPLidar A2M8** — 2D LiDAR for navigation and obstacle detection  
 - 🧭 **MPU6050 IMU** — orientation estimation and motion stabilization  
 - 🔋 **INA260** — power monitoring and battery supervision 
 
