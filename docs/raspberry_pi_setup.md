@@ -334,7 +334,13 @@ This procedure verifies that the RPLIDAR A2M8 is correctly connected, publishing
    3. Rebuild the workspace.
    4. Run the test again.
    Repeat until the quadrant readings correctly match the physical orientation of the robot.
-   
+
+   ⚠️ **Important – If you correct the rotation in software**
+
+   If you decide to compensate for the LIDAR rotation in software instead of physically rotating the sensor, you must also update the navigation node:
+   - Open: osr_control_challenge/osr_control_challenge/maze_navigation_real.py
+   - Modify line 92
+   - Set the correct angular offset value
 ---
 
 ➡️ Continue with the main project documentation to run Phoenyx I in simulation or on the real robot:
