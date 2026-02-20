@@ -40,7 +40,9 @@ The system integrates multiple sensors to enable autonomous operation:
 - 🎥 **Intel RealSense D435i** — RGB-D perception and visual detection  
 - 📡 **RPLidar** — 2D LiDAR for navigation and obstacle detection  
 - 🧭 **MPU6050 IMU** — orientation estimation and motion stabilization  
-- 🔋 **INA260** — power monitoring and battery supervision  
+- 🔋 **INA260** — power monitoring and battery supervision 
+
+✨ PHOENYX-I is featured in the official [Open Source Rover repository](https://github.com/nasa-jpl/open-source-rover/tree/master/examples) as a community example project. We are very proud to contribute back to the same open-source initiative that originally inspired and enabled this project.
 
 <p align="center">
   <img src="https://img.shields.io/badge/ROS2-Humble-blue"/>
@@ -52,8 +54,8 @@ The system integrates multiple sensors to enable autonomous operation:
 ## 📦 Jump to:
 
 - [🚀 Quick Start ](#-quick-start)
-- [📂 Repo Structure](#-repository-structure)
 - [🚦 How to Run](#-how-to-run-the-system) 
+- [📂 Repo Structure](#-repository-structure)
 - [🏁 Competition Results](#-competition-results)
 - [🤝 Want to Collaborate?](#-want-to-collaborate)
 - [🌐 Join & Follow Us](#-join--follow-us)
@@ -220,4 +222,3 @@ Stay connected with PUCRA and follow our journey:
 <p align="center">
   <img src="docs/images/PHOENYX-I-Logo.png" alt="Project Logo"/>
 </p>
-
