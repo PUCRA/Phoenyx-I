@@ -296,7 +296,7 @@ This procedure verifies that the RPLIDAR A2M8 is correctly connected, publishing
 
 1. Open a first terminal and run:
    ```bash
-   $ ros2 launch rplidar_ros rplidar_a2m8_launch.py serial_port:=/dev/ttyUSB0 serial_baudrate:=115200 scan_mode:=Standard
+   ros2 launch rplidar_ros rplidar_a2m8_launch.py serial_port:=/dev/ttyUSB0 serial_baudrate:=115200 scan_mode:=Standard
    ```
 
    If the LIDAR is correctly connected, it should start rotating and publishing data on the /scan topic.
