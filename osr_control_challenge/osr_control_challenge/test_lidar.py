@@ -19,10 +19,10 @@ class LidarQuadrants(Node):
 
         # Ángulos centrales de los cuadrantes en grados
         self.quadrants_deg = {
-            'front': 90,
-            'left': 180,
-            'back': 270,
-            'right': 0
+            'front': 270,
+            'left': 0,
+            'back': 90,
+            'right': 180 
         }
         self.quadrant_width_deg = 30  # cada cuadrante ±22.5°
 

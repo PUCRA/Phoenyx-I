@@ -89,9 +89,9 @@ class Maze_Navigation_Node(Node):
         # =========================
         # DISTANCES USING CORRECT INDEX METHOD
         # =========================
-        front_distance = get_sector_distance(90, 20)  # 20° window around front
-        left_distance  = get_sector_distance(150, 60) # 60° window around left
-        right_distance = get_sector_distance(30, 60)  # 60° window around right
+        front_distance = get_sector_distance(270, 20)  # 20° window around front
+        left_distance  = get_sector_distance(0, 60) # 60° window around left
+        right_distance = get_sector_distance(180, 60)  # 60° window around right
 
         # =========================
         # Dinamic adjustment of kp based on frontal distance
