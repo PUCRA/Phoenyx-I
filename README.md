@@ -88,7 +88,16 @@ This procedure is **only required once**, or whenever a steering servo or corner
 
 👉 **Follow the complete steering servo calibration guide here:**  
 ➡️ [`docs/steering_servo_calibration.md`](docs/steering_servo_calibration.md)
-  
+
+
+### ⚙️ Network Setup Unitree LIDAR 4D
+
+Before operating the rover on real hardware, the LiDAR network interface must be configured.
+This is **only required once**, or after a full system restart.
+
+👉 **Follow the complete steering servo calibration guide here:**  
+➡️ [`scripts/README.md`](scripts/README.md)
+
 
 ## 🚦 How to Run the System
 
