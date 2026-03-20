@@ -1,0 +1,73 @@
+# ====================================================================
+# CONFIGURACIÓN MINIMALISTA - SOLO SENSOR LIDAR
+# ====================================================================
+# Esta configuración es para trabajar ÚNICAMENTE con el sensor,
+# sin integración con un robot completo. Perfecta para desarrollo
+# y pruebas del sensor de forma aislada.
+
+pointcloud_to_laserscan:
+  ros__parameters:
+    # =========================================
+    # ALTURA DEL SLICE (ajusta según tus necesidades)
+    # =========================================
+    # Estos valores capturan un rango amplio de obstáculos
+    # Si quieres más precisión, reduce el rango a lo que necesites
+    min_height: -0.5     # 50cm por debajo del LIDAR
+    max_height: 0.5      # 50cm por encima del LIDAR
+    
+    # ALTERNATIVAS según tu caso:
+    # - Navegación en interiores (paredes): -0.3 a 0.3
+    # - Detección de suelo: -0.5 a 0.1
+    # - Obstáculos altos: 0.2 a 0.8
+    
+    # =========================================
+    # COBERTURA ANGULAR (360° completo)
+    # =========================================
+    angle_min: -3.141592653589793    # -180° (-π radianes)
+    angle_max: 3.141592653589793     # +180° (+π radianes)
+    angle_increment: 0.004363323     # 0.25° resolución (buena calidad)
+    
+    # Si necesitas más velocidad y menos resolución:
+    # angle_increment: 0.017453293   # 1° (más rápido)
+    
+    # =========================================
+    # RANGO DE DISTANCIAS
+    # =========================================
+    range_min: 0.05      # 5cm - distancia mínima detectable
+    range_max: 10.0      # 10m - distancia máxima útil
+    
+    # Ajusta según tu entorno:
+    # - Espacios pequeños: range_max: 5.0
+    # - Exteriores amplios: range_max: 30.0
+    
+    # =========================================
+    # FRAME Y ROTACIÓN
+    # =========================================
+    target_frame: "unilidar_lidar"   # Frame del LIDAR (NO cambiar)
+    
+    # Si el LIDAR está físicamente rotado en tu montaje:
+    rotation_offset: 0.0              # Sin rotación
+    # rotation_offset: 1.5708         # +90° (π/2 radianes)
+    # rotation_offset: -1.5708        # -90° (-π/2 radianes)
+    # rotation_offset: 3.141592654    # 180° (π radianes)
+    
+    # =========================================
+    # FILTROS ADICIONALES
+    # =========================================
+    outlier_threshold: 5.0           # Eliminar puntos anómalos
+
+# ====================================================================
+# NOTAS IMPORTANTES:
+# ====================================================================
+# 1. En RViz, asegúrate de que Fixed Frame = "unilidar_lidar"
+# 2. No necesitas TF (transformadas) para trabajar solo con el sensor
+# 3. El topic de salida es: /scan
+# 4. El topic de entrada es: /unilidar/cloud
+# 
+# Para verificar que funciona:
+#   ros2 topic echo /scan --once
+#   ros2 topic hz /scan
+#
+# Para ajustar altura en tiempo real:
+#   ros2 param set /pointcloud_to_laserscan min_height -0.3
+#   ros2 param set /pointcloud_to_laserscan max_height 0.3
